@@ -146,10 +146,15 @@ export default function Quiz() {
 
       // 4. Show result using locally computed values (always correct)
       setResult({ score: finalScore, total, totalTime });
-      localStorage.removeItem('participantId');
-      localStorage.removeItem('sessionToken');
-      localStorage.removeItem('startedAt');
-      setTimeout(() => navigate('/leaderboard'), 4000);
+      // NOTE: Clear localStorage INSIDE setTimeout so that during the 4-second
+      // result screen, participantId is still valid and doesn't trigger the
+      // useEffect to navigate('/') prematurely.
+      setTimeout(() => {
+        localStorage.removeItem('participantId');
+        localStorage.removeItem('sessionToken');
+        localStorage.removeItem('startedAt');
+        navigate('/leaderboard');
+      }, 4000);
 
     } catch (err: any) {
       setError(err.message || 'Failed to submit quiz. Please try again.');

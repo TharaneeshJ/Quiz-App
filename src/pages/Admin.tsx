@@ -320,9 +320,6 @@ export default function Admin() {
 
   // ---------- Stats ----------
   const completedCount = participants.filter(p => p.submitted).length;
-  const avgScore = completedCount > 0
-    ? (participants.filter(p => p.submitted).reduce((s, p) => s + p.score, 0) / completedCount).toFixed(1)
-    : '—';
 
   // ============================
   // LOGIN
@@ -491,7 +488,6 @@ export default function Admin() {
                   { label: 'Participants', value: participants.length, color: '#FFC107', icon: <Users size={28} strokeWidth={3} />, bg: 'bg-[#FFC107]' },
                   { label: 'Completed', value: completedCount, color: '#4CAF50', icon: <CheckCircle2 size={28} strokeWidth={3} />, bg: 'bg-[#4CAF50] text-white' },
                   { label: 'Questions', value: questions.length, color: '#03A9F4', icon: <Database size={28} strokeWidth={3} />, bg: 'bg-[#03A9F4] text-white' },
-                  { label: 'Avg Score', value: avgScore, color: '#FF5722', icon: <LayoutDashboard size={28} strokeWidth={3} />, bg: 'bg-[#FF5722] text-white' },
                 ].map(stat => (
                   <div key={stat.label} className="bg-white p-8 rounded-[2rem] border-4 border-black shadow-brutal relative overflow-hidden group hover:-translate-y-2 transition-transform">
                     <div className="flex items-center justify-between mb-6 relative z-10">
@@ -728,7 +724,7 @@ export default function Admin() {
                 <div>
                   <h2 className="text-4xl font-black text-black mb-1">Participants</h2>
                   <p className="text-gray-500 font-bold">
-                    {participants.length} registered · {completedCount} completed · Avg: {avgScore} pts
+                   {participants.length} registered · {completedCount} completed
                   </p>
                 </div>
 

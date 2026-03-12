@@ -17,6 +17,11 @@
   }
 }
 
+/* Scale down the entire UI — all rem-based Tailwind classes shrink proportionally */
+html {
+  font-size: 14px; /* browser default is 16px; 14px ≈ 12.5% smaller */
+}
+
 body {
   background-color: #FFF9F0;
   color: #1A1A1A;
