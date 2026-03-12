@@ -754,7 +754,6 @@ export default function Admin() {
                       <tr>
                         <th className="px-6 py-5">Name</th>
                         <th className="px-6 py-5">College</th>
-                        <th className="px-6 py-5">Email</th>
                         <th className="px-6 py-5">Status</th>
                         <th className="px-6 py-5">Score</th>
                         <th className="px-6 py-5">Started</th>
@@ -763,7 +762,7 @@ export default function Admin() {
                     <tbody className="divide-y-2 divide-gray-200 font-medium">
                       {participants.length === 0 ? (
                         <tr>
-                          <td colSpan={6} className="px-6 py-16 text-center text-gray-500 text-lg font-bold">
+                          <td colSpan={5} className="px-6 py-16 text-center text-gray-500 text-lg font-bold">
                             No participants yet. Start the quiz to let them in!
                           </td>
                         </tr>
@@ -772,20 +771,19 @@ export default function Admin() {
                           <tr key={p.id} className="hover:bg-[#FFF3E0] transition-colors">
                             <td className="px-6 py-5 font-black text-lg">{p.name}</td>
                             <td className="px-6 py-5 text-gray-600 font-bold">{p.college}</td>
-                            <td className="px-6 py-5 text-gray-500 font-bold text-sm">{p.email || '—'}</td>
                             <td className="px-6 py-5">
-                              {p.completed_at ? (
+                              {p.submitted ? (
                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-black bg-[#4CAF50] text-white border-2 border-black shadow-brutal-sm">
                                   Completed
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-black bg-[#FFC107] text-black border-2 border-black shadow-brutal-sm">
-                                  In Progress
+                                  {p.status || 'In Progress'}
                                 </span>
                               )}
                             </td>
                             <td className="px-6 py-5">
-                              {p.completed_at ? (
+                              {p.submitted ? (
                                 <span className="font-black text-2xl text-[#FF5722]">{p.score}</span>
                               ) : (
                                 <span className="font-black text-xl text-gray-300">—</span>
