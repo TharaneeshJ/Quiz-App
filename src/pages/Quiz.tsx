@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertCircle, Trophy, Zap, SkipForward } from 'lucide-react';
+import { AlertCircle, Trophy, Zap, SkipForward, CheckCircle2, XCircle, MinusCircle, Timer, Star } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../supabase';
 
@@ -411,7 +411,7 @@ export default function Quiz() {
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#FFC107] rounded-full mix-blend-multiply opacity-50" />
           <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#4CAF50] rounded-full mix-blend-multiply opacity-50" />
           <Trophy className="mx-auto text-[#FFC107] mb-3 relative z-10" size={64} strokeWidth={2} />
-          <h2 className="text-4xl font-black text-black mb-1 relative z-10">Quiz Complete! 🎉</h2>
+          <h2 className="text-4xl font-black text-black mb-1 relative z-10">Quiz Complete!</h2>
           <p className="text-gray-500 mb-5 font-bold relative z-10">Great job competing!</p>
 
           {/* Score card */}
@@ -423,28 +423,35 @@ export default function Quiz() {
             </div>
           </div>
 
-          {/* Stats grid */}
+          {/* Stats grid — 3 cols: Correct / Wrong / Skipped */}
           <div className="grid grid-cols-3 gap-2 relative z-10 mb-3">
-            <div className="bg-[#E8F5E9] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">✅ Correct</div>
+            <div className="bg-[#E8F5E9] border-2 border-black rounded-2xl p-3 text-center flex flex-col items-center gap-1">
+              <CheckCircle2 size={22} className="text-[#4CAF50]" strokeWidth={2.5} />
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide">Correct</div>
               <div className="text-2xl font-black text-[#4CAF50]">{result.correct}</div>
             </div>
-            <div className="bg-[#FFEBEE] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">❌ Wrong</div>
+            <div className="bg-[#FFEBEE] border-2 border-black rounded-2xl p-3 text-center flex flex-col items-center gap-1">
+              <XCircle size={22} className="text-[#FF5252]" strokeWidth={2.5} />
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide">Wrong</div>
               <div className="text-2xl font-black text-[#FF5252]">{result.wrong}</div>
             </div>
-            <div className="bg-[#FFF9C4] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">⏳ Skipped</div>
+            <div className="bg-[#FFF9C4] border-2 border-black rounded-2xl p-3 text-center flex flex-col items-center gap-1">
+              <MinusCircle size={22} className="text-[#F9A825]" strokeWidth={2.5} />
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide">Skipped</div>
               <div className="text-2xl font-black text-[#F9A825]">{result.skipped}</div>
             </div>
           </div>
+
+          {/* Stats grid — 2 cols: Time / Rank */}
           <div className="grid grid-cols-2 gap-3 relative z-10 mb-5">
-            <div className="bg-[#FFF3E0] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">⏱ Total Time</div>
+            <div className="bg-[#FFF3E0] border-2 border-black rounded-2xl p-3 text-center flex flex-col items-center gap-1">
+              <Timer size={22} className="text-[#FF9800]" strokeWidth={2.5} />
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide">Total Time</div>
               <div className="text-2xl font-black text-[#FF9800]">{timeDisplay}</div>
             </div>
-            <div className="bg-[#EDE7F6] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">🏆 Rank</div>
+            <div className="bg-[#EDE7F6] border-2 border-black rounded-2xl p-3 text-center flex flex-col items-center gap-1">
+              <Star size={22} className="text-[#9C27B0]" strokeWidth={2.5} />
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide">Rank</div>
               <div className="text-2xl font-black text-[#9C27B0]">
                 {result.rank != null ? `#${result.rank}` : '—'}
               </div>
