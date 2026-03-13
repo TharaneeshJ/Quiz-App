@@ -234,7 +234,7 @@ export default function Quiz() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx, loading, submitting, questions.length]);
 
   // ── Initial data fetch ────────────────────────────────────────────
@@ -418,8 +418,8 @@ export default function Quiz() {
               className={clsx(
                 'text-3xl font-black w-16 h-16 rounded-full border-4 border-black flex items-center justify-center shadow-brutal-sm transition-colors',
                 timeLeft <= 3 ? 'bg-[#FF5252] text-white animate-pulse' :
-                timeLeft <= 5 ? 'bg-[#FFC107] text-black' :
-                'bg-white text-black'
+                  timeLeft <= 5 ? 'bg-[#FFC107] text-black' :
+                    'bg-white text-black'
               )}
             >
               {timeLeft}
@@ -450,7 +450,7 @@ export default function Quiz() {
             {/* Question card */}
             <div className="bg-white p-7 md:p-10 rounded-[2rem] shadow-brutal-lg border-4 border-black relative">
               <div className="absolute -top-5 -left-5 bg-[#FFC107] w-12 h-12 rounded-full border-4 border-black flex items-center justify-center font-black text-xl shadow-brutal-sm transform -rotate-12">
-                ?
+                {currentIdx + 1}
               </div>
               <h2 className="text-xl md:text-2xl font-black text-black leading-tight">
                 {currentQuestion.question}
@@ -475,8 +475,8 @@ export default function Quiz() {
                       isSelected
                         ? 'border-black bg-[#4CAF50] text-white shadow-brutal'
                         : isAnySelected
-                        ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'border-black bg-white hover:bg-[#FFF3E0] text-black shadow-brutal-sm hover:shadow-brutal'
+                          ? 'border-gray-300 bg-gray-100 text-gray-400 cursor-not-allowed'
+                          : 'border-black bg-white hover:bg-[#FFF3E0] text-black shadow-brutal-sm hover:shadow-brutal'
                     )}
                   >
                     <div className="flex items-center gap-4">
@@ -485,8 +485,8 @@ export default function Quiz() {
                         isSelected
                           ? 'bg-white text-[#4CAF50] border-white'
                           : isAnySelected
-                          ? 'bg-gray-200 text-gray-400 border-gray-300'
-                          : 'bg-gray-100 text-gray-600 border-gray-300 group-hover:bg-[#FFC107] group-hover:text-black group-hover:border-black'
+                            ? 'bg-gray-200 text-gray-400 border-gray-300'
+                            : 'bg-gray-100 text-gray-600 border-gray-300 group-hover:bg-[#FFC107] group-hover:text-black group-hover:border-black'
                       )}>
                         {option.displayLetter}
                       </div>

@@ -293,19 +293,14 @@ export default function Admin() {
 
   const exportCSV = () => {
     if (participants.length === 0) return;
-    const headers = ['Rank', 'Name', 'College', 'Score', 'Total Time (s)', 'Status', 'Started At', 'Completed At'];
+    const headers = ['Name', 'College', 'Points'];
     const completed = participants.filter(p => p.submitted).sort((a, b) => b.score - a.score || a.total_time - b.total_time);
     const inProgress = participants.filter(p => !p.submitted);
     const sorted = [...completed, ...inProgress];
-    const rows = sorted.map((p, i) => [
-      p.submitted ? i + 1 : '—',
+    const rows = sorted.map((p) => [
       `"${p.name}"`,
       `"${p.college}"`,
-      p.score,
-      p.total_time,
-      p.submitted ? 'Completed' : (p.status || 'In Progress'),
-      p.started_at,
-      p.completed_at || '',
+      p.submitted ? p.score : 0,
     ].join(','));
 
     const csv = [headers.join(','), ...rows].join('\n');
