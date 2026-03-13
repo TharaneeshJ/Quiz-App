@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Settings, Users, Database, Play, Square,
   Upload, Trash2, LogOut, Download, AlertCircle, CheckCircle2,
-  LayoutDashboard, PlusCircle, X
+  LayoutDashboard, PlusCircle, X, Trophy, Clock, Menu
 } from 'lucide-react';
 import clsx from 'clsx';
 import { supabase } from '../supabase';
@@ -25,6 +25,8 @@ interface Participant {
   id: string;
   name: string;
   college: string;
+  dept: string;
+  phone: string;
   score: number;
   total_time: number;
   status: string;
@@ -49,9 +51,10 @@ export default function Admin() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [session, setSession] = useState<QuizSession | null>(null);
-  const [activeTab, setActiveTab] = useState<'overview' | 'questions' | 'participants'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'questions' | 'participants' | 'leaderboard'>('overview');
   const [loading, setLoading] = useState(false);
   const [toggleError, setToggleError] = useState('');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Add question form
   const [showAddForm, setShowAddForm] = useState(false);
@@ -293,13 +296,15 @@ export default function Admin() {
 
   const exportCSV = () => {
     if (participants.length === 0) return;
-    const headers = ['Name', 'College', 'Points'];
+    const headers = ['Name', 'College', 'Department', 'Phone', 'Points'];
     const completed = participants.filter(p => p.submitted).sort((a, b) => b.score - a.score || a.total_time - b.total_time);
     const inProgress = participants.filter(p => !p.submitted);
     const sorted = [...completed, ...inProgress];
     const rows = sorted.map((p) => [
       `"${p.name}"`,
       `"${p.college}"`,
+      `"${p.dept || ''}"`  ,
+      `"${p.phone || ''}"`,
       p.submitted ? p.score : 0,
     ].join(','));
 
@@ -374,51 +379,146 @@ export default function Admin() {
   // DASHBOARD
   // ============================
   return (
-    <div className="min-h-screen bg-[#FFF9F0] flex flex-col md:flex-row font-sans">
-      {/* Sidebar */}
-      <aside className="w-full md:w-72 bg-white border-b-4 md:border-b-0 md:border-r-4 border-black flex flex-col z-20">
-        <div className="p-6 border-b-4 border-black flex items-center space-x-4 bg-[#FFC107]">
-          <div className="bg-white p-2 rounded-xl border-2 border-black shadow-brutal-sm transform -rotate-6">
-            <Settings className="text-black" size={24} strokeWidth={3} />
+    <div className="min-h-screen bg-[#FFF9F0] font-sans">
+
+      {/* ── Mobile Top Bar ── */}
+      <div className="md:hidden sticky top-0 z-40 bg-[#FFC107] border-b-4 border-black flex items-center justify-between px-4 py-3 shadow-brutal">
+        <div className="flex items-center gap-3">
+          <div className="bg-white p-1.5 rounded-xl border-2 border-black shadow-brutal-sm transform -rotate-6">
+            <Settings className="text-black" size={20} strokeWidth={3} />
           </div>
-          <span className="text-2xl font-black text-black">Admin Panel</span>
+          <span className="text-xl font-black text-black">Admin Panel</span>
         </div>
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 bg-white border-2 border-black rounded-xl shadow-brutal-sm hover:shadow-brutal transition-all active:scale-95"
+        >
+          <Menu size={24} className="text-black" />
+        </button>
+      </div>
 
-        <nav className="flex-1 p-6 flex flex-col space-y-4">
-          {(['overview', 'questions', 'participants'] as const).map((tab) => {
-            const icons = { overview: <LayoutDashboard size={24} />, questions: <Database size={24} />, participants: <Users size={24} /> };
-            const colors = { overview: 'bg-[#FFC107] text-black', questions: 'bg-[#03A9F4] text-white', participants: 'bg-[#4CAF50] text-white' };
-            return (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={clsx(
-                  'flex items-center space-x-4 px-5 py-4 rounded-2xl transition-all font-black text-lg border-2 capitalize',
-                  activeTab === tab
-                    ? `${colors[tab]} border-black shadow-brutal translate-x-1`
-                    : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-100 hover:border-black hover:shadow-brutal-sm'
-                )}
-              >
-                {icons[tab]}
-                <span>{tab}</span>
-              </button>
-            );
-          })}
-        </nav>
+      {/* ── Mobile Sidebar Drawer ── */}
+      <AnimatePresence>
+        {sidebarOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              key="backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            />
+            {/* Drawer */}
+            <motion.aside
+              key="drawer"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="fixed top-0 left-0 h-full w-72 bg-white border-r-4 border-black z-50 flex flex-col shadow-brutal md:hidden"
+            >
+              {/* Drawer Header */}
+              <div className="p-5 border-b-4 border-black flex items-center justify-between bg-[#FFC107]">
+                <div className="flex items-center gap-3">
+                  <div className="bg-white p-2 rounded-xl border-2 border-black shadow-brutal-sm transform -rotate-6">
+                    <Settings className="text-black" size={22} strokeWidth={3} />
+                  </div>
+                  <span className="text-xl font-black text-black">Admin Panel</span>
+                </div>
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="p-2 bg-white border-2 border-black rounded-xl shadow-brutal-sm hover:bg-gray-100 transition-colors"
+                >
+                  <X size={20} className="text-black" />
+                </button>
+              </div>
 
-        <div className="p-6 border-t-4 border-black bg-gray-50">
-          <button
-            onClick={() => { setAuthed(false); sessionStorage.removeItem('adminAuthed'); }}
-            className="flex items-center justify-center space-x-3 px-4 py-4 w-full rounded-2xl text-white bg-[#FF5252] border-2 border-black font-black text-lg hover:-translate-y-1 hover:shadow-brutal transition-all active:translate-y-0 active:shadow-none"
-          >
-            <LogOut size={24} />
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
+              {/* Drawer Nav */}
+              <nav className="flex-1 p-5 flex flex-col space-y-3 overflow-y-auto">
+                {(['overview', 'questions', 'participants', 'leaderboard'] as const).map((tab) => {
+                  const icons = { overview: <LayoutDashboard size={22} />, questions: <Database size={22} />, participants: <Users size={22} />, leaderboard: <Trophy size={22} /> };
+                  const colors = { overview: 'bg-[#FFC107] text-black', questions: 'bg-[#03A9F4] text-white', participants: 'bg-[#4CAF50] text-white', leaderboard: 'bg-[#FF5722] text-white' };
+                  return (
+                    <button
+                      key={tab}
+                      onClick={() => { setActiveTab(tab); setSidebarOpen(false); }}
+                      className={clsx(
+                        'flex items-center space-x-4 px-5 py-4 rounded-2xl transition-all font-black text-lg border-2 capitalize w-full',
+                        activeTab === tab
+                          ? `${colors[tab]} border-black shadow-brutal translate-x-1`
+                          : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-100 hover:border-black hover:shadow-brutal-sm'
+                      )}
+                    >
+                      {icons[tab]}
+                      <span>{tab}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+
+              {/* Drawer Logout */}
+              <div className="p-5 border-t-4 border-black bg-gray-50">
+                <button
+                  onClick={() => { setAuthed(false); sessionStorage.removeItem('adminAuthed'); setSidebarOpen(false); }}
+                  className="flex items-center justify-center space-x-3 px-4 py-4 w-full rounded-2xl text-white bg-[#FF5252] border-2 border-black font-black text-lg hover:-translate-y-1 hover:shadow-brutal transition-all active:translate-y-0 active:shadow-none"
+                >
+                  <LogOut size={22} />
+                  <span>Logout</span>
+                </button>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Desktop Layout ── */}
+      <div className="flex flex-row">
+        {/* Desktop Sidebar (hidden on mobile) */}
+        <aside className="hidden md:flex w-72 bg-white border-r-4 border-black flex-col z-20 min-h-screen sticky top-0">
+          <div className="p-6 border-b-4 border-black flex items-center space-x-4 bg-[#FFC107]">
+            <div className="bg-white p-2 rounded-xl border-2 border-black shadow-brutal-sm transform -rotate-6">
+              <Settings className="text-black" size={24} strokeWidth={3} />
+            </div>
+            <span className="text-2xl font-black text-black">Admin Panel</span>
+          </div>
+
+          <nav className="flex-1 p-6 flex flex-col space-y-4">
+            {(['overview', 'questions', 'participants', 'leaderboard'] as const).map((tab) => {
+              const icons = { overview: <LayoutDashboard size={24} />, questions: <Database size={24} />, participants: <Users size={24} />, leaderboard: <Trophy size={24} /> };
+              const colors = { overview: 'bg-[#FFC107] text-black', questions: 'bg-[#03A9F4] text-white', participants: 'bg-[#4CAF50] text-white', leaderboard: 'bg-[#FF5722] text-white' };
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={clsx(
+                    'flex items-center space-x-4 px-5 py-4 rounded-2xl transition-all font-black text-lg border-2 capitalize',
+                    activeTab === tab
+                      ? `${colors[tab]} border-black shadow-brutal translate-x-1`
+                      : 'bg-transparent border-transparent text-gray-600 hover:bg-gray-100 hover:border-black hover:shadow-brutal-sm'
+                  )}
+                >
+                  {icons[tab]}
+                  <span>{tab}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="p-6 border-t-4 border-black bg-gray-50">
+            <button
+              onClick={() => { setAuthed(false); sessionStorage.removeItem('adminAuthed'); }}
+              className="flex items-center justify-center space-x-3 px-4 py-4 w-full rounded-2xl text-white bg-[#FF5252] border-2 border-black font-black text-lg hover:-translate-y-1 hover:shadow-brutal transition-all active:translate-y-0 active:shadow-none"
+            >
+              <LogOut size={24} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-6 md:p-10 overflow-y-auto relative">
+        <main className="flex-1 p-6 md:p-10 overflow-y-auto relative min-h-screen">
         <div className="absolute top-20 right-20 w-64 h-64 bg-[#03A9F4] rounded-full mix-blend-multiply filter blur-3xl opacity-10 pointer-events-none"></div>
         <div className="absolute bottom-20 left-20 w-64 h-64 bg-[#FFC107] rounded-full mix-blend-multiply filter blur-3xl opacity-10 pointer-events-none"></div>
 
@@ -749,6 +849,8 @@ export default function Admin() {
                       <tr>
                         <th className="px-6 py-5">Name</th>
                         <th className="px-6 py-5">College</th>
+                        <th className="px-6 py-5">Dept</th>
+                        <th className="px-6 py-5">Phone</th>
                         <th className="px-6 py-5">Status</th>
                         <th className="px-6 py-5">Score</th>
                         <th className="px-6 py-5">Started</th>
@@ -757,7 +859,7 @@ export default function Admin() {
                     <tbody className="divide-y-2 divide-gray-200 font-medium">
                       {participants.length === 0 ? (
                         <tr>
-                          <td colSpan={5} className="px-6 py-16 text-center text-gray-500 text-lg font-bold">
+                          <td colSpan={7} className="px-6 py-16 text-center text-gray-500 text-lg font-bold">
                             No participants yet. Start the quiz to let them in!
                           </td>
                         </tr>
@@ -766,6 +868,8 @@ export default function Admin() {
                           <tr key={p.id} className="hover:bg-[#FFF3E0] transition-colors">
                             <td className="px-6 py-5 font-black text-lg">{p.name}</td>
                             <td className="px-6 py-5 text-gray-600 font-bold">{p.college}</td>
+                            <td className="px-6 py-5 text-gray-600 font-bold">{p.dept || '—'}</td>
+                            <td className="px-6 py-5 text-gray-600 font-bold">{p.phone || '—'}</td>
                             <td className="px-6 py-5">
                               {p.submitted ? (
                                 <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-black bg-[#4CAF50] text-white border-2 border-black shadow-brutal-sm">
@@ -797,8 +901,210 @@ export default function Admin() {
             </motion.div>
           )}
 
+          {/* ---- LEADERBOARD ---- */}
+          {activeTab === 'leaderboard' && (() => {
+            const completed = [...participants]
+              .filter(p => p.submitted)
+              .sort((a, b) => b.score - a.score || a.total_time - b.total_time);
+            const inProgress = participants.filter(p => !p.submitted);
+
+            const medalColor = (rank: number) => {
+              if (rank === 1) return 'bg-[#FFD700] border-[#B8860B] text-[#7B5800]';
+              if (rank === 2) return 'bg-[#C0C0C0] border-[#808080] text-[#404040]';
+              if (rank === 3) return 'bg-[#CD7F32] border-[#8B4513] text-white';
+              return 'bg-white border-black text-black';
+            };
+
+            const fmtTime = (s: number) => {
+              const m = Math.floor(s / 60);
+              const sec = s % 60;
+              return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
+            };
+
+            return (
+              <motion.div
+                key="leaderboard"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="space-y-8 relative z-10"
+              >
+                {/* Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 md:p-8 rounded-[2rem] border-4 border-black shadow-brutal">
+                  <div>
+                    <h2 className="text-4xl font-black text-black mb-1 flex items-center gap-3">
+                      <Trophy className="text-[#FFD700]" size={36} />
+                      Leaderboard
+                    </h2>
+                    <p className="text-gray-500 font-bold">
+                      {completed.length} finished · {inProgress.length} still in progress
+                    </p>
+                  </div>
+                </div>
+
+                {/* Podium */}
+                {completed.length > 0 && (() => {
+                  const getInitials = (name: string) => name.substring(0, 2).toUpperCase();
+                  const first  = completed[0];
+                  const second = completed[1];
+                  const third  = completed[2];
+                  const podiumOrder = [second, first, third].filter(Boolean) as typeof completed;
+                  return (
+                    <div className="bg-white rounded-[2rem] border-4 border-black shadow-brutal p-6 md:p-8">
+                      <div className="flex justify-center items-end gap-3 md:gap-6 mt-4 mb-2">
+                        {podiumOrder.map((p, idx) => {
+                          const isFirst = p === first;
+                          const isThird = p === third;
+                          const rank = isFirst ? 1 : isThird ? 3 : 2;
+                          return (
+                            <motion.div
+                              key={p.id}
+                              initial={{ opacity: 0, y: 50 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.15, type: 'spring' }}
+                              className="flex flex-col items-center relative"
+                            >
+                              {/* Avatar + score */}
+                              <div className="mb-4 flex flex-col items-center">
+                                <div className={clsx(
+                                  'rounded-full border-4 border-black flex items-center justify-center font-black text-white shadow-brutal-sm z-10 relative',
+                                  isFirst ? 'w-24 h-24 bg-[#FFC107] text-3xl' : 'w-16 h-16 text-xl',
+                                  !isFirst && !isThird && 'bg-gray-400',
+                                  isThird && 'bg-[#FF9800]'
+                                )}>
+                                  {getInitials(p.name)}
+                                  <div className="absolute -bottom-3 bg-white text-black text-xs px-3 py-1 rounded-full border-2 border-black font-bold whitespace-nowrap z-20 shadow-sm">
+                                    {p.score} pts
+                                  </div>
+                                </div>
+                                <div className="mt-6 font-black text-center text-sm md:text-base w-24 md:w-32 truncate px-1">
+                                  {p.name}
+                                </div>
+                                <div className="text-xs text-gray-500 font-bold w-24 md:w-32 text-center truncate px-2 mt-0.5">
+                                  {p.college}
+                                </div>
+                              </div>
+                              {/* Bar */}
+                              <div className={clsx(
+                                'w-24 md:w-32 border-4 border-b-0 border-black rounded-t-2xl shadow-[inset_0_-10px_0_rgba(0,0,0,0.1)] flex justify-center pt-4',
+                                isFirst ? 'h-40 bg-[#FF5722]' : rank === 2 ? 'h-28 bg-[#4CAF50]' : 'h-20 bg-[#03A9F4]'
+                              )}>
+                                <span className="text-4xl font-black text-white opacity-80">{rank}</span>
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+
+                {/* Leaderboard Table */}
+                <div className="bg-white rounded-[2rem] shadow-brutal border-4 border-black overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-black">
+                      <thead className="bg-[#FF5722] text-white font-black border-b-4 border-black text-base">
+                        <tr>
+                          <th className="px-6 py-5">Rank</th>
+                          <th className="px-6 py-5">Name</th>
+                          <th className="px-6 py-5">College</th>
+                          <th className="px-6 py-5">Score</th>
+                          <th className="px-6 py-5">Time</th>
+                          <th className="px-6 py-5">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y-2 divide-gray-100 font-medium">
+                        {participants.length === 0 ? (
+                          <tr>
+                            <td colSpan={6} className="px-6 py-16 text-center text-gray-500 text-lg font-bold">
+                              No participants yet. Start the quiz!
+                            </td>
+                          </tr>
+                        ) : (
+                          <>
+                            {completed.map((p, i) => {
+                              const rank = i + 1;
+                              const isTop3 = rank <= 3;
+                              const emojis = ['🥇', '🥈', '🥉'];
+                              return (
+                                <tr
+                                  key={p.id}
+                                  className={clsx(
+                                    'transition-colors',
+                                    rank === 1 ? 'bg-[#FFFDE7] hover:bg-[#FFF9C4]' :
+                                    rank === 2 ? 'bg-[#FAFAFA] hover:bg-[#F5F5F5]' :
+                                    rank === 3 ? 'bg-[#FFF3E0] hover:bg-[#FFE0B2]' :
+                                    'hover:bg-[#FFF3E0]'
+                                  )}
+                                >
+                                  <td className="px-6 py-5">
+                                    <span className={clsx(
+                                      'inline-flex items-center justify-center w-11 h-11 rounded-full border-2 font-black text-lg shadow-brutal-sm',
+                                      medalColor(rank)
+                                    )}>
+                                      {isTop3 ? emojis[rank - 1] : rank}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-5">
+                                    <div className="font-black text-lg">{p.name}</div>
+                                  </td>
+                                  <td className="px-6 py-5 text-gray-600 font-bold">{p.college}</td>
+                                  <td className="px-6 py-5">
+                                    <span className="font-black text-2xl text-[#FF5722]">{p.score}</span>
+                                    <span className="text-xs text-gray-400 font-bold ml-1">pts</span>
+                                  </td>
+                                  <td className="px-6 py-5">
+                                    <span className="flex items-center gap-1 font-bold text-gray-600">
+                                      <Clock size={14} />
+                                      {fmtTime(p.total_time)}
+                                    </span>
+                                  </td>
+                                  <td className="px-6 py-5">
+                                    <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-black bg-[#4CAF50] text-white border-2 border-black shadow-brutal-sm">
+                                      Completed
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                            {inProgress.map((p) => (
+                              <tr key={p.id} className="hover:bg-[#F5F5F5] opacity-60 transition-colors">
+                                <td className="px-6 py-5">
+                                  <span className="inline-flex items-center justify-center w-11 h-11 rounded-full border-2 border-gray-300 bg-gray-100 font-black text-gray-400">
+                                    —
+                                  </span>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <div className="font-black text-lg text-gray-500">{p.name}</div>
+                                </td>
+                                <td className="px-6 py-5 text-gray-400 font-bold">{p.college}</td>
+                                <td className="px-6 py-5">
+                                  <span className="font-black text-xl text-gray-300">—</span>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <span className="text-gray-300 font-bold">—</span>
+                                </td>
+                                <td className="px-6 py-5">
+                                  <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-black bg-[#FFC107] text-black border-2 border-black shadow-brutal-sm">
+                                    {p.status || 'In Progress'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })()}
+
         </AnimatePresence>
       </main>
+      </div> {/* end desktop flex-row */}
     </div>
   );
 }

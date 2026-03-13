@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, User, Building2, ArrowRight, AlertCircle } from 'lucide-react';
+import { Sparkles, User, Building2, ArrowRight, AlertCircle, BookOpen, Phone } from 'lucide-react';
 import { supabase } from '../supabase';
 
 export default function Home() {
   const [name, setName] = useState('');
   const [college, setCollege] = useState('');
+  const [dept, setDept] = useState('');
+  const [phone, setPhone] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -82,8 +84,12 @@ export default function Home() {
     e.preventDefault();
     setError('');
 
-    if (!name.trim() || !college.trim()) {
-      setError('Please fill in your name and college');
+    if (!name.trim() || !college.trim() || !dept.trim() || !phone.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+    if (!/^[0-9]{10}$/.test(phone.trim())) {
+      setError('Please enter a valid 10-digit phone number');
       return;
     }
 
@@ -111,6 +117,8 @@ export default function Home() {
         .insert({
           name: name.trim(),
           college: college.trim(),
+          dept: dept.trim(),
+          phone: phone.trim(),
           session_token: sessionToken,
           score: 0,
         })
@@ -211,6 +219,34 @@ export default function Home() {
                   onChange={(e) => setCollege(e.target.value)}
                   className="block w-full pl-12 pr-4 py-4 bg-[#F5F5F5] border-2 border-black rounded-2xl focus:bg-white focus:ring-0 focus:border-[#FF5722] transition-colors text-lg font-semibold placeholder-gray-400 shadow-brutal-sm outline-none"
                   placeholder="College Name"
+                  required
+                />
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <BookOpen size={20} className="opacity-50" />
+                </div>
+                <input
+                  type="text"
+                  value={dept}
+                  onChange={(e) => setDept(e.target.value)}
+                  className="block w-full pl-12 pr-4 py-4 bg-[#F5F5F5] border-2 border-black rounded-2xl focus:bg-white focus:ring-0 focus:border-[#FF5722] transition-colors text-lg font-semibold placeholder-gray-400 shadow-brutal-sm outline-none"
+                  placeholder="Department (e.g. CSE, ECE)"
+                  required
+                />
+              </div>
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Phone size={20} className="opacity-50" />
+                </div>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                  className="block w-full pl-12 pr-4 py-4 bg-[#F5F5F5] border-2 border-black rounded-2xl focus:bg-white focus:ring-0 focus:border-[#FF5722] transition-colors text-lg font-semibold placeholder-gray-400 shadow-brutal-sm outline-none"
+                  placeholder="Phone Number (10 digits)"
                   required
                 />
               </div>
