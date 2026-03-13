@@ -72,7 +72,8 @@ export default function Quiz() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [result, setResult] = useState<{ score: number; total: number; totalTime: number } | null>(null);
+  const [result, setResult] = useState<{ score: number; total: number; totalTime: number; correct: number; wrong: number; skipped: number; rank: number | null } | null>(null);
+  const [tabWarning, setTabWarning] = useState(false);
 
   const navigate = useNavigate();
   const participantId = localStorage.getItem('participantId');
@@ -108,9 +109,12 @@ export default function Quiz() {
           .eq('participant_id', participantId),
       ]);
 
-      // 2. Client-side score: 10 base + speed bonus (8 - time) for correct answers
+      // 2. Client-side score + correct/wrong/skipped tracking
       let finalScore = 0;
       let totalTime = 0;
+      let correctCount = 0;
+      let wrongCount = 0;
+      let skippedCount = 0;
       const total = allQuestions?.length ?? 0;
 
       if (allQuestions && participantAnswers) {
@@ -118,19 +122,23 @@ export default function Quiz() {
         participantAnswers.forEach(ans => {
           const t: number = ans.answer_time ?? QUESTION_TIMER_SECONDS;
           totalTime += t;
-          if (correctMap.get(ans.question_id) === ans.selected_option) {
+          if (ans.selected_option === null) {
+            skippedCount++; // timed out — no answer saved
+          } else if (correctMap.get(ans.question_id) === ans.selected_option) {
+            correctCount++;
             finalScore += 10 + Math.max(0, QUESTION_TIMER_SECONDS - t);
+          } else {
+            wrongCount++;
           }
         });
       }
 
-      // 3. Try calculate_score() RPC (uses SECURITY DEFINER if configured, else anon perms)
+      // 3. Try calculate_score() RPC
       const { error: rpcError } = await supabase.rpc('calculate_score', {
         p_id: participantId,
       });
 
       if (rpcError) {
-        // RPC failed — try direct UPDATE as fallback
         console.warn('calculate_score RPC failed, using direct update:', rpcError.message);
         await supabase
           .from('participants')
@@ -144,17 +152,28 @@ export default function Quiz() {
           .eq('id', participantId);
       }
 
-      // 4. Show result using locally computed values (always correct)
-      setResult({ score: finalScore, total, totalTime });
-      // NOTE: Clear localStorage INSIDE setTimeout so that during the 4-second
-      // result screen, participantId is still valid and doesn't trigger the
-      // useEffect to navigate('/') prematurely.
+      // 4. Fetch rank from leaderboard view
+      let rank: number | null = null;
+      try {
+        const { data: rankData } = await supabase
+          .from('leaderboard')
+          .select('rank')
+          .eq('id', participantId)
+          .maybeSingle();
+        if (rankData) rank = rankData.rank;
+      } catch (_) { /* rank fetch is non-critical */ }
+
+      // 5. Show result
+      setResult({ score: finalScore, total, totalTime, correct: correctCount, wrong: wrongCount, skipped: skippedCount, rank });
+
+      // Clear localStorage after 6 seconds (user sees result screen)
       setTimeout(() => {
         localStorage.removeItem('participantId');
         localStorage.removeItem('sessionToken');
         localStorage.removeItem('startedAt');
+        localStorage.removeItem('currentQuestion');
         navigate('/leaderboard');
-      }, 4000);
+      }, 6000);
 
     } catch (err: any) {
       setError(err.message || 'Failed to submit quiz. Please try again.');
@@ -164,13 +183,13 @@ export default function Quiz() {
   }, [participantId, navigate]);
 
   // ── Save answer + answer_time to Supabase ─────────────────────────
-  const saveAnswer = useCallback(async (questionId: string, originalLetter: string, answerTime: number) => {
+  const saveAnswer = useCallback(async (questionId: string, originalLetter: string | null, answerTime: number) => {
     try {
       await supabase.from('answers').upsert(
         {
           participant_id: participantId,
           question_id: questionId,
-          selected_option: originalLetter,
+          selected_option: originalLetter, // null = timed out
           answer_time: answerTime,
         },
         { onConflict: 'participant_id,question_id' }
@@ -193,6 +212,16 @@ export default function Quiz() {
       questionStartTimeRef.current = Date.now();
     }
   }, [submitQuiz]);
+
+  // ── Handle timeout: save null answer (8s) then advance ───────────
+  const handleTimeout = useCallback(() => {
+    const q = questionsRef.current[currentIdxRef.current];
+    if (q) {
+      // Fire-and-forget: save null answer so total_time includes 8s
+      saveAnswer(q.id, null, QUESTION_TIMER_SECONDS);
+    }
+    moveToNext();
+  }, [saveAnswer, moveToNext]);
 
   // ── Handle option click ───────────────────────────────────────────
   const handleAnswer = useCallback(async (option: QuizOption) => {
@@ -224,7 +253,7 @@ export default function Quiz() {
         if (prev <= 1) {
           clearInterval(timerRef.current!);
           timerRef.current = null;
-          moveToNext();
+          handleTimeout(); // save null answer (8s) THEN advance
           return 0;
         }
         return prev - 1;
@@ -236,6 +265,31 @@ export default function Quiz() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIdx, loading, submitting, questions.length]);
+
+  // ── Anti-cheat: block tab switching & right-click ─────────────────
+  useEffect(() => {
+    if (loading || result !== null || submitting || questions.length === 0) return;
+    const onVisibility = () => {
+      if (document.hidden) {
+        setTabWarning(true);
+        setTimeout(() => setTabWarning(false), 4000);
+      }
+    };
+    const onContextMenu = (e: MouseEvent) => e.preventDefault();
+    document.addEventListener('visibilitychange', onVisibility);
+    document.addEventListener('contextmenu', onContextMenu);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      document.removeEventListener('contextmenu', onContextMenu);
+    };
+  }, [loading, result, submitting, questions.length]);
+
+  // ── Network recovery: save current question index ─────────────────
+  useEffect(() => {
+    if (!loading && questions.length > 0 && result === null) {
+      localStorage.setItem('currentQuestion', String(currentIdx));
+    }
+  }, [currentIdx, loading, questions.length, result]);
 
   // ── Initial data fetch ────────────────────────────────────────────
   useEffect(() => {
@@ -279,6 +333,12 @@ export default function Quiz() {
         const shuffled = buildShuffledQuestions(rawQuestions);
         setQuestions(shuffled);
         questionsRef.current = shuffled;
+        // Network recovery: restore question index
+        const savedIdx = parseInt(localStorage.getItem('currentQuestion') || '0', 10);
+        if (savedIdx > 0 && savedIdx < shuffled.length) {
+          setCurrentIdx(savedIdx);
+          currentIdxRef.current = savedIdx;
+        }
         setLoading(false);
       } catch (err: any) {
         setError(err.message || 'Failed to load quiz');
@@ -339,34 +399,58 @@ export default function Quiz() {
     const mins = Math.floor(result.totalTime / 60);
     const secs = result.totalTime % 60;
     const timeDisplay = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+    const pct = maxPossible > 0 ? Math.round((result.score / maxPossible) * 100) : 0;
     return (
       <div className="min-h-screen bg-[#FFF9F0] flex items-center justify-center p-6">
         <motion.div
           initial={{ scale: 0.8, opacity: 0, rotate: -5 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          className="bg-white p-10 rounded-[2.5rem] shadow-brutal-lg border-4 border-black max-w-md w-full text-center relative overflow-hidden"
+          className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-brutal-lg border-4 border-black max-w-md w-full text-center relative overflow-hidden"
         >
           <div className="absolute -top-10 -right-10 w-32 h-32 bg-[#FFC107] rounded-full mix-blend-multiply opacity-50" />
           <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-[#4CAF50] rounded-full mix-blend-multiply opacity-50" />
-          <Trophy className="mx-auto text-[#FFC107] mb-4 relative z-10" size={72} strokeWidth={2} />
+          <Trophy className="mx-auto text-[#FFC107] mb-3 relative z-10" size={64} strokeWidth={2} />
           <h2 className="text-4xl font-black text-black mb-1 relative z-10">Quiz Complete! 🎉</h2>
-          <p className="text-gray-500 mb-6 font-bold relative z-10">Great job competing!</p>
+          <p className="text-gray-500 mb-5 font-bold relative z-10">Great job competing!</p>
+
+          {/* Score card */}
           <div className="bg-[#FFF9F0] border-4 border-black rounded-3xl p-5 mb-4 shadow-brutal-sm relative z-10 transform rotate-1">
             <div className="text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Total Score</div>
             <div className="text-6xl font-black text-[#FF5722]">{result.score}</div>
-            <div className="text-sm font-bold text-gray-400 mt-1">out of {maxPossible} possible pts</div>
-          </div>
-          <div className="grid grid-cols-2 gap-3 relative z-10 mb-6">
-            <div className="bg-[#E8F5E9] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">Questions</div>
-              <div className="text-2xl font-black text-[#4CAF50]">{result.total}</div>
+            <div className="text-sm font-bold text-gray-400 mt-1">
+              {result.score} / {maxPossible} pts &nbsp;·&nbsp; {pct}%
             </div>
+          </div>
+
+          {/* Stats grid */}
+          <div className="grid grid-cols-3 gap-2 relative z-10 mb-3">
+            <div className="bg-[#E8F5E9] border-2 border-black rounded-2xl p-3 text-center">
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">✅ Correct</div>
+              <div className="text-2xl font-black text-[#4CAF50]">{result.correct}</div>
+            </div>
+            <div className="bg-[#FFEBEE] border-2 border-black rounded-2xl p-3 text-center">
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">❌ Wrong</div>
+              <div className="text-2xl font-black text-[#FF5252]">{result.wrong}</div>
+            </div>
+            <div className="bg-[#FFF9C4] border-2 border-black rounded-2xl p-3 text-center">
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">⏳ Skipped</div>
+              <div className="text-2xl font-black text-[#F9A825]">{result.skipped}</div>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3 relative z-10 mb-5">
             <div className="bg-[#FFF3E0] border-2 border-black rounded-2xl p-3 text-center">
-              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">Time Used</div>
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">⏱ Total Time</div>
               <div className="text-2xl font-black text-[#FF9800]">{timeDisplay}</div>
             </div>
+            <div className="bg-[#EDE7F6] border-2 border-black rounded-2xl p-3 text-center">
+              <div className="text-xs font-black text-gray-500 uppercase tracking-wide mb-1">🏆 Rank</div>
+              <div className="text-2xl font-black text-[#9C27B0]">
+                {result.rank != null ? `#${result.rank}` : '—'}
+              </div>
+            </div>
           </div>
+
           <p className="text-sm font-bold text-gray-400 animate-pulse relative z-10">
             Heading to leaderboard in a moment...
           </p>
@@ -395,6 +479,20 @@ export default function Quiz() {
 
   return (
     <div className="min-h-screen bg-[#FFF9F0] flex flex-col font-sans">
+      {/* ── Tab-switch warning banner ── */}
+      <AnimatePresence>
+        {tabWarning && (
+          <motion.div
+            initial={{ y: -60, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -60, opacity: 0 }}
+            className="fixed top-0 left-0 right-0 z-50 bg-[#FF5252] text-white text-center font-black py-3 px-4 border-b-4 border-black shadow-brutal text-sm md:text-base"
+          >
+            ⚠️ Tab switching detected! Stay on this tab or your quiz may be submitted.
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* ── Top Bar ── */}
       <header className="bg-white border-b-4 border-black sticky top-0 z-20 shadow-sm">
         <div className="max-w-3xl mx-auto px-4 md:px-6 py-3 flex items-center justify-between gap-4">
